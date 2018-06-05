@@ -59,7 +59,8 @@ compileJava {
     ]
 }
 
-def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
+//def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
+def buildTag = System.propertes.getProperty('buildTag')
 version = apiVersion
 mainClassName = mainclass
 
@@ -355,15 +356,15 @@ task createDockerImage(type:Exec, dependsOn: shadowJar) {
 }
 
 task tagFunctionalTestDockerImage(type:Exec, dependsOn: createFunctionalTestDockerImage) {
-    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$dockerTag"
+    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$buildTag"
 }
 
 task tagIntegrationTestDockerImage(type:Exec, dependsOn: createIntegrationTestDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$dockerTag"
+  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$buildTag"
 }
 
 task tagDockerImage(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$dockerTag"
+  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$buildTag"
 }
 
 task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTestDockerImage) {
@@ -375,11 +376,11 @@ task pushDockerLatest(type:Exec, dependsOn: createDockerImage) {
 }
 
 task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegrationTestDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api-integration-test:$dockerTag"
+  commandLine 'docker',  'push',  "cwds/api-integration-test:$buildTag"
 }
 
 task pushDockerVersionTagged(type:Exec, dependsOn: tagDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api:$dockerTag"
+  commandLine 'docker',  'push',  "cwds/api:$buildTag"
 }
 task createFunctionalTests(dependsOn: [tagFunctionalTestDockerImage , createFunctionalTestDockerImage]){
     doLast {

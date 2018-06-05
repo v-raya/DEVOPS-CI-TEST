@@ -1,0 +1,34 @@
+{
+  "abuseEndDate" : 1477872000000,
+  "abuseFrequency" : 2,
+  "abuseFrequencyPeriodCode" : "M",
+  "abuseLocationDescription" : "Barber Shop",
+  "abuseStartDate" : 1477872000000,
+  "allegationDispositionType" : 0,
+  "allegationType" : {
+    "sys_id" : 2180,
+    "short_description" : "Severe Neglect",
+    "logical_id" : "0013"
+  },
+  "countySpecificCode" : "19",
+  "dispositionDate" : 1477872000000,
+  "dispositionDescription" : "Fremont",
+  "id" : "1234567ABC",
+  "injuryHarmDetailIndicator" : "false",
+  "lastUpdatedId" : null,
+  "lastUpdatedTime" : null,
+  "nonProtectingParentCode" : "N",
+  "perpetratorClientId" : "MKPFcB90F4",
+  "placementFacilityType" : {
+    "sys_id" : 6574,
+    "short_description" : "Social Skills",
+    "logical_id" : "0016"
+  },
+  "primaryKey" : "1234567ABC",
+  "referralId" : "AbiQCgu0Hj",
+  "staffPersonAddedIndicator" : "false",
+  "victimClientId" : "AHooKwN0F4",
+  "zippyCreatedIndicator" : "false",
+    "victimClients" : null,
+  "perpetratorClients" : null
+}

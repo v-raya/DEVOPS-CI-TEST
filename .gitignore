@@ -1,0 +1,12 @@
+.gradle/
+build/
+.classpath
+.project
+.settings/
+bin/
+.idea
+*.env
+*.sw*
+*api.iml
+.DS_Store
+docker/ferb-test/reports

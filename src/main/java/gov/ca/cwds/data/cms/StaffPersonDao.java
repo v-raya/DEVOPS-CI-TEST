@@ -1,0 +1,49 @@
+package gov.ca.cwds.data.cms;
+
+import gov.ca.cwds.data.BaseDaoImpl;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.stream.Collectors;
+import org.hibernate.SessionFactory;
+
+import com.google.inject.Inject;
+
+import gov.ca.cwds.data.persistence.cms.StaffPerson;
+import gov.ca.cwds.inject.CmsSessionFactory;
+import org.hibernate.query.Query;
+
+/**
+ * Hibernate DAO for DB2 {@link StaffPerson}.
+ * 
+ * @author CWDS API Team
+ */
+public class StaffPersonDao extends BaseDaoImpl<StaffPerson> {
+
+  /**
+   * Constructor
+   * 
+   * @param sessionFactory The session factory
+   */
+  @Inject
+  public StaffPersonDao(@CmsSessionFactory SessionFactory sessionFactory) {
+    super(sessionFactory);
+  }
+
+  /**
+   * Find StaffPersons by id-s
+   *
+   * @param ids Set of StaffPerson id-s
+   * @return map where key is a StaffPerson id and value is a StaffPerson itself
+   */
+  public Map<String, StaffPerson> findByIds(Collection<String> ids) {
+    if (ids == null || ids.isEmpty()) {
+      return new HashMap<>();
+    }
+    @SuppressWarnings("unchecked")
+    final Query<StaffPerson> query = this.getSessionFactory().getCurrentSession()
+        .getNamedQuery(constructNamedQueryName("findByIds")).setParameter("ids", ids);
+    return query.list().stream().collect(Collectors.toMap(StaffPerson::getId, s -> s));
+  }
+
+}

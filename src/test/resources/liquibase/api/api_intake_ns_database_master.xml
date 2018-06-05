@@ -1,0 +1,43 @@
+<?xml version="1.1" encoding="UTF-8" standalone="no"?>
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+                   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                   xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.5.xsd">
+
+  <include file="liquibase/intake_ns_data_types.xml"/>
+  <include file="liquibase/intake_ns_schema.xml"/>
+  <!--<include file="../liquibase-local/intake_ns_structure.xml" relativeToChangelogFile="true"/>-->
+  <include file="liquibase/intake_ns_structure.xml"/>
+  <include file="liquibase/intake_ns_data.xml"/>
+  <include file="liquibase/data/201803140950_add_relationship_types.sql"/>
+  <include file="liquibase/data/201803181933_update_relationship_types.sql"/>
+  <include file="liquibase/data/201805141535_alter_intake_lov_codes.sql"/>
+  <include file="liquibase/data/201804201439_update_system_codes.sql"/>
+  <include file="liquibase/data/201804261430_update_intake-lov-codes.sql"/>
+  <include file="liquibase/data/201804261431_revert_system_codes.sql"/>
+  <!--<include file="liquibase/data/201805091355_convert_crossReport_inform_date_type.sql"/>-->
+  <include file="liquibase/data/201805141747_csec_ddl.xml"/>
+  <include file="liquibase/data/201805151038_lov_csec_data.xml"/>
+  <include file="liquibase/data/201805151135_create_tbl_ssb.sql"/>
+  <include file="liquibase/data/201805161035_insert_ssb_lov.sql"/>
+  <include file="liquibase/data/201805211406_delete_intake_lov_code.sql"/>
+  <include file="liquibase/data/201805251138_lov_report_type.xml"/>
+  <include file="liquibase/data/201805251518-delete_intake_lov_code.sql"/>
+  <include file="liquibase/data/201806011244_remove_fk_and_convert_to_intake_lov_code.xml"/>
+  <include file="liquibase/data/201806011245_restore_pk_in_intake_lov_code.xml"/>
+
+  <include file="data/screening_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/addresses_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/screening_addresses_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/participants_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/participant_addresses_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/phone_numbers_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/participant_phone_numbers_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/allegations_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/cross_reports_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/agencies_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/legacy_descriptors_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/csec_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/safely_surr_babies_data.xml" relativeToChangelogFile="true"/>
+  <include file="data/relationships_data.xml" relativeToChangelogFile="true"/>
+
+</databaseChangeLog>

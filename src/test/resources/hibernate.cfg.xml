@@ -1,0 +1,94 @@
+<!DOCTYPE hibernate-configuration PUBLIC
+        "-//Hibernate/Hibernate Configuration DTD 3.0//EN"
+        "http://www.hibernate.org/dtd/hibernate-configuration-3.0.dtd">
+
+<!-- NOTE: Connect to Taborda VPN to run integration tests (test package 
+	gov.ca.cwds.rest.jbdi.cms). -->
+<hibernate-configuration>
+	<session-factory>
+		<property name="hibernate.current_session_context_class">thread</property>
+		<property name="hibernate.dialect">org.hibernate.dialect.DB2Dialect</property>
+		<property name="hibernate.temp.use_jdbc_metadata_defaults">false</property>
+		<property name="hibernate.connection.driver_class">com.ibm.db2.jcc.DB2Driver</property>
+		<property name="connection_pool_size">2</property>
+		<property name="show_sql">true</property>
+
+<!-- Per environment: -->
+		<property name="hibernate.connection.username">${DB_CMS_USER}</property>
+		<property name="hibernate.connection.password">${DB_CMS_PASSWORD}</property>
+		<property name="hibernate.connection.url">${DB_CMS_JDBC_URL}</property>
+		<property name="hibernate.default_schema">${DB_CMS_SCHEMA}</property>
+<!-- local-->
+    <!--<property name="hibernate.connection.username">db2inst1</property>-->
+    <!--<property name="hibernate.connection.password">db2inst1</property>-->
+    <!--<property name="hibernate.connection.url">jdbc:db2://localhost:50000/DB0TDEV</property>-->
+    <!--<property name="hibernate.default_schema">CWSINT</property>-->
+<!-- Taborda Jenkins: -->
+<!-- 
+ 		<property name="hibernate.connection.username">db2inst1</property>
+		<property name="hibernate.connection.password">db2inst1</property>
+		<property name="hibernate.connection.url">jdbc:db2://cms.db.dev.cwds.tabordasolutions.net:50000/DB0TDEV</property>
+		<property name="hibernate.default_schema">CWSINT</property>
+-->
+ 
+<!-- NS4: -->
+<!-- 
+		<property name="hibernate.connection.username">CWDSABC</property>
+		<property name="hibernate.connection.password">obscurity</property>
+		<property name="hibernate.connection.url">jdbc:db2://localhost:9000/DBN1SOC</property>
+		<property name="hibernate.default_schema">CWSNS4</property>
+ -->
+
+		<mapping class="gov.ca.cwds.data.persistence.cms.Client" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientAddress"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.Address"/>
+
+		<mapping class="gov.ca.cwds.data.persistence.cms.Allegation" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.StaffPerson" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.ReferralClient" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.Referral" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.Reporter" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.OtherClientName" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.Attorney" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.ServiceProvider" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.OtherAdultInPlacemtHome" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.SubstituteCareProvider" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.OtherChildInPlacemtHome" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.CollateralIndividual" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientCollateral" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.EducationProviderContact" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.CrossReport" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.CmsDocument" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.CmsDocReferralClient" />
+		<mapping class="gov.ca.cwds.data.persistence.cms.CmsDocumentBlobSegment"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.LongText"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.AllegationPerpetratorHistory"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.AddressUc"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientUc"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ChildClient"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.CountyOwnership"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.CountyTrigger"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.DrmsDocument"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.CmsCase"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.Tickle"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ExternalInterface"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientRelationship"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientCollateral"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.CaseLoad"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.LawEnforcementEntity"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.StaffPersonCaseLoad"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ClientScpEthnicity"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.GovernmentOrganizationEntity"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.GovernmentOrganizationCrossReport"/>
+		<mapping class="gov.ca.cwds.data.persistence.contact.DeliveredServiceEntity"/>
+		<mapping class="gov.ca.cwds.data.persistence.contact.ContactPartyDeliveredServiceEntity"/>
+		<mapping class="gov.ca.cwds.data.persistence.contact.ReferralClientDeliveredServiceEntity"/> 
+		<mapping class="gov.ca.cwds.data.persistence.contact.IndividualDeliveredServiceEntity"/>
+
+		<mapping class="gov.ca.cwds.data.persistence.cms.Assignment"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.ReferralAssignment"/>
+		<mapping class="gov.ca.cwds.data.persistence.cms.CaseAssignment"/>
+		
+  		
+	</session-factory>
+</hibernate-configuration>

@@ -1,0 +1,57 @@
+{
+	"reference": "screening reference",
+	"ended_at": "2016-10-31",
+	"incident_county": "Santa Clara",
+	"incident_date": "2016-10-31",
+	"location_type": "school",
+	"communication_method": "phone",
+	"name": "screening name",
+	"response_time": "24 hour",
+	"screening_decision": "accept_for_investigation",
+	"started_at": "2016-10-05",
+	"narrative": "test the narrative",
+	"address": {
+	  "legacy_source_table" : "",
+	  "legacy_id" : "",
+		"street_address": "123 Main",
+		"city": "Sacramento",
+		"state": 1828,
+		"zip": 95757,
+		"type": 32
+	},
+	"participants": [{
+	"id" : "1",
+	  "legacy_source_table" : "",
+	  "legacy_id" : "",
+    "legacy_descriptor": {
+      "legacy_id": null,
+       "legacy_ui_id": null,
+       "legacy_last_updated": null,
+       "legacy_table_name": null,
+       "legacy_table_description": null
+    },
+	  "first_name": "john",
+    "middle_name": "T.",
+	  "last_name": "smith",
+    "name_suffix": "",
+	  "gender": "male",
+ 	  "ssn": "123456789",
+	  "date_of_birth": "2001-09-13",
+	  "person_id": 12345,
+	  "screening_id": 12345,
+	  "roles" : [
+	  	"victim"
+	  	],
+         "addresses":[
+            {
+	  "legacy_source_table" : "",
+	  "legacy_id" : "",
+               "street_address":"123 Main",
+               "state":"CA",
+               "city":"Sacramento",
+               "zip":"95757",
+               "type": 32
+            }
+         ]
+	}]
+}

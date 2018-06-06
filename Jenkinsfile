@@ -197,7 +197,6 @@ node ('tpt4-slave'){
 		  rtGradle.useWrapper = false
    }
    stage("Increment Tag") {
-      try {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")
             
@@ -214,7 +213,6 @@ node ('tpt4-slave'){
            debug("Increment Tag: newTag: ${newTag}")
 
           updateFiles(newTag)
-        }
       }
    }  
    stage('Build'){

@@ -54,8 +54,7 @@ node ('tpt4-slave'){
    stage("Increment Tag") {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")
-          
-            
+  
         def labels = getLabels(prEvent)
         debug("Increment Tag: labels: ${labels}")
       

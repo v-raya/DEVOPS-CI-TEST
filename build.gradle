@@ -59,8 +59,7 @@ compileJava {
     ]
 }
 
-//def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
-def buildTag = System.propertes.getProperty('buildTag')
+def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
 version = apiVersion
 mainClassName = mainclass
 
@@ -352,19 +351,19 @@ task createIntegrationTestDockerImage (type:Exec, dependsOn: shadowJar) {
 }
 
 task createDockerImage(type:Exec, dependsOn: shadowJar) {
-  commandLine 'docker',  'build',  '-t',  'cwds/devops-ci-test', '-f', 'Dockerfile', '.'
+  commandLine 'docker',  'build',  '-t',  'cwds/api', '-f', 'Dockerfile', '.'
 }
 
 task tagFunctionalTestDockerImage(type:Exec, dependsOn: createFunctionalTestDockerImage) {
-    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$buildTag"
+    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$dockerTag"
 }
 
 task tagIntegrationTestDockerImage(type:Exec, dependsOn: createIntegrationTestDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$buildTag"
+  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$dockerTag"
 }
 
 task tagDockerImage(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/devops-ci-test',  "cwds/devops-ci-test:$buildTag"
+  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$dockerTag"
 }
 
 task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTestDockerImage) {
@@ -372,15 +371,15 @@ task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTest
 }
 
 task pushDockerLatest(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'push',  'cwds/devops-ci-test:latest'
+  commandLine 'docker',  'push',  'cwds/api:latest'
 }
 
 task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegrationTestDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api-integration-test:$buildTag"
+  commandLine 'docker',  'push',  "cwds/api-integration-test:$dockerTag"
 }
 
 task pushDockerVersionTagged(type:Exec, dependsOn: tagDockerImage) {
-  commandLine 'docker',  'push',  "cwds/devops-ci-test:$buildTag"
+  commandLine 'docker',  'push',  "cwds/api:$dockerTag"
 }
 task createFunctionalTests(dependsOn: [tagFunctionalTestDockerImage , createFunctionalTestDockerImage]){
     doLast {

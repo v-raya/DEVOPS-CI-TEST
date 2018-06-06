@@ -52,14 +52,15 @@ node ('tpt4-slave'){
 		  rtGradle.useWrapper = false
    }
    stage('Build'){
-		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${BUILD_NUMBER}'
+     // Build tag comes from the environment variable defined in UpdateFiles Definition
+		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${buildTag}'
    }
    stage('Tests') {
-       buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${BUILD_NUMBER}'
+       buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${buildTag}'
        publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/test', reportFiles: 'index.html', reportName: 'JUnit Report', reportTitles: 'JUnit tests summary'])
    }
    stage('Integration Tests'){
-         buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'integrationTest  jacocoTestReport', switches: '--stacktrace -D build=${BUILD_NUMBER}'
+         buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'integrationTest  jacocoTestReport', switches: '--stacktrace -D build=${buildTag}'
          publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/integrationTest', reportFiles: 'index.html', reportName: 'IT Report', reportTitles: 'Integration Tests summary'])
        }
    stage('SonarQube analysis'){

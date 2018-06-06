@@ -54,10 +54,11 @@ node ('tpt4-slave'){
    stage("Increment Tag") {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")
+          
             
         def labels = getLabels(prEvent)
         debug("Increment Tag: labels: ${labels}")
-            
+      
         VersionIncrement increment = getVersionIncrement(labels)
         debug("Increment Tag: increment: ${increment}")
         if(increment != null ) {
@@ -65,7 +66,7 @@ node ('tpt4-slave'){
           debug("Increment Tag: tags: ${tags}")
 
           def newTag = getNewTag(tags, increment)
-           debug("Increment Tag: newTag: ${newTag}")
+          debug("Increment Tag: newTag: ${newTag}")
 
           updateFiles(newTag)
       }

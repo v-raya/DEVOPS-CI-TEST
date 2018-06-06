@@ -352,7 +352,7 @@ task createIntegrationTestDockerImage (type:Exec, dependsOn: shadowJar) {
 }
 
 task createDockerImage(type:Exec, dependsOn: shadowJar) {
-  commandLine 'docker',  'build',  '-t',  'cwds/api', '-f', 'Dockerfile', '.'
+  commandLine 'docker',  'build',  '-t',  'cwds/devops-ci-test', '-f', 'Dockerfile', '.'
 }
 
 task tagFunctionalTestDockerImage(type:Exec, dependsOn: createFunctionalTestDockerImage) {
@@ -364,7 +364,7 @@ task tagIntegrationTestDockerImage(type:Exec, dependsOn: createIntegrationTestDo
 }
 
 task tagDockerImage(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$buildTag"
+  commandLine 'docker',  'tag',  'cwds/devops-ci-test',  "cwds/devops-ci-test:$buildTag"
 }
 
 task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTestDockerImage) {
@@ -372,7 +372,7 @@ task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTest
 }
 
 task pushDockerLatest(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'push',  'cwds/api:latest'
+  commandLine 'docker',  'push',  'cwds/devops-ci-test:latest'
 }
 
 task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegrationTestDockerImage) {
@@ -380,7 +380,7 @@ task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegration
 }
 
 task pushDockerVersionTagged(type:Exec, dependsOn: tagDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api:$buildTag"
+  commandLine 'docker',  'push',  "cwds/devops-ci-test:$buildTag"
 }
 task createFunctionalTests(dependsOn: [tagFunctionalTestDockerImage , createFunctionalTestDockerImage]){
     doLast {

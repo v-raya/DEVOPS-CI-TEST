@@ -196,6 +196,27 @@ node ('tpt4-slave'){
 		  rtGradle.resolver repo:'repo', server: serverArti
 		  rtGradle.useWrapper = false
    }
+   stage("Increment Tag") {
+      try {
+        def prEvent = getPullRequestEvent()
+        debug("Increment Tag: prEvent: ${prEvent}")
+            
+        def labels = getLabels(prEvent)
+        debug("Increment Tag: labels: ${labels}")
+            
+        VersionIncrement increment = getVersionIncrement(labels)
+        debug("Increment Tag: increment: ${increment}")
+        if(increment != null ) {
+          def tags = getTags()
+          debug("Increment Tag: tags: ${tags}")
+
+          def newTag = getNewTag(tags, increment)
+           debug("Increment Tag: newTag: ${newTag}")
+
+          updateFiles(newTag)
+        }
+      }
+   }  
    stage('Build'){
 		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${BUILD_NUMBER}'
    }
@@ -221,37 +242,12 @@ node ('tpt4-slave'){
 		buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publish -D build=${BUILD_NUMBER}'
 		rtGradle.deployer.deployArtifacts = false
 	}
-  stage('Clone Repo') {
-		  cleanWs()
-		  git branch: 'master', credentialsId: '433ac100-b3c2-4519-b4d6-207c029a103b', url: 'git@github.com:ca-cwds/devops-ci-test.git'
-	}
-  stage("Increment Tag") {
-        try {
-            def prEvent = getPullRequestEvent()
-            debug("Increment Tag: prEvent: ${prEvent}")
-            
-            def labels = getLabels(prEvent)
-            debug("Increment Tag: labels: ${labels}")
-            
-            VersionIncrement increment = getVersionIncrement(labels)
-            debug("Increment Tag: increment: ${increment}")
-            if(increment != null ) {
-                def tags = getTags()
-                debug("Increment Tag: tags: ${tags}")
-
-                def newTag = getNewTag(tags, increment)
-                debug("Increment Tag: newTag: ${newTag}")
-
-                updateFiles(newTag)
-            }
-        }
-  }
-	stage ('Build Docker'){
+  stage ('Build Docker'){
 	   withDockerRegistry([credentialsId: '6ba8d05c-ca13-4818-8329-15d41a089ec0']) {
            buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D build=${BUILD_NUMBER} -D buildTag=${buildTag}'
        }
 	}
-  stage ('Build GitTag'){
+  stage ('Build GitTag') {
       tagRepo(newTag)
   }
 	stage('Clean Workspace') {

@@ -51,6 +51,25 @@ node ('tpt4-slave'){
 		  rtGradle.resolver repo:'repo', server: serverArti
 		  rtGradle.useWrapper = false
    }
+   stage("Increment Tag") {
+        def prEvent = getPullRequestEvent()
+        debug("Increment Tag: prEvent: ${prEvent}")
+            
+        def labels = getLabels(prEvent)
+        debug("Increment Tag: labels: ${labels}")
+            
+        VersionIncrement increment = getVersionIncrement(labels)
+        debug("Increment Tag: increment: ${increment}")
+        if(increment != null ) {
+          def tags = getTags()
+          debug("Increment Tag: tags: ${tags}")
+
+          def newTag = getNewTag(tags, increment)
+           debug("Increment Tag: newTag: ${newTag}")
+
+          updateFiles(newTag)
+      }
+   }  
    stage('Build'){
      // Build tag comes from the environment variable defined in UpdateFiles Definition
 		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${buildTag}'

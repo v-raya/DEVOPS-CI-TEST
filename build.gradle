@@ -29,9 +29,9 @@ sourceCompatibility = 1.8
 applicationDefaultJvmArgs = ["-Djava.library.path=.:./lib:/var/lib/jenkins/workspace/API/lib:/usr/local/lib"]
 
 project.ext {
-    apiVersion = '0.7.3'
+    apiVersion = '7.3'
     coreApiVersion = '1.7.2_794-RC'
-    cwdsModelVersion = '0.7.3_583-RC'
+    cwdsModelVersion = '0.7.3_589-RC'
     configPath = '$rootProject.projectDir/config/'
     dropwizardVersion = '1.1.0'
     dropwizardFlywayVersion = '1.0.0-1'
@@ -59,8 +59,7 @@ compileJava {
     ]
 }
 
-//def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
-def buildTag = System.propertes.getProperty('buildTag')
+def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
 version = apiVersion
 mainClassName = mainclass
 
@@ -334,9 +333,8 @@ task copyDist(type: Copy, dependsOn: shadowJar) {
 task apidocker(type: Docker,  dependsOn: [copyConfig, copyDist] ) {
     dockerfile = "Dockerfile"
     project.group = "cwds"
-    applicationName = "devops-ci-test"
-    tagVersion = $buildTag
-  //  tagVersion = version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
+    applicationName = "api"
+    tagVersion = version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
 }
 
 task createGradleCache(type: Copy) {
@@ -353,19 +351,19 @@ task createIntegrationTestDockerImage (type:Exec, dependsOn: shadowJar) {
 }
 
 task createDockerImage(type:Exec, dependsOn: shadowJar) {
-  commandLine 'docker',  'build',  '-t',  'cwds/devops-ci-test', '-f', 'Dockerfile', '.'
+  commandLine 'docker',  'build',  '-t',  'cwds/api', '-f', 'Dockerfile', '.'
 }
 
 task tagFunctionalTestDockerImage(type:Exec, dependsOn: createFunctionalTestDockerImage) {
-    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$buildTag"
+    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$dockerTag"
 }
 
 task tagIntegrationTestDockerImage(type:Exec, dependsOn: createIntegrationTestDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$buildTag"
+  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$dockerTag"
 }
 
 task tagDockerImage(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/devops-ci-test',  "cwds/devops-ci-test:$buildTag"
+  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$dockerTag"
 }
 
 task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTestDockerImage) {
@@ -373,21 +371,32 @@ task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTest
 }
 
 task pushDockerLatest(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'push',  'cwds/devops-ci-test:latest'
+  commandLine 'docker',  'push',  'cwds/api:latest'
 }
 
 task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegrationTestDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api-integration-test:$buildTag"
+  commandLine 'docker',  'push',  "cwds/api-integration-test:$dockerTag"
 }
 
 task pushDockerVersionTagged(type:Exec, dependsOn: tagDockerImage) {
-  commandLine 'docker',  'push',  "cwds/devops-ci-test:$buildTag"
+  commandLine 'docker',  'push',  "cwds/api:$dockerTag"
 }
 task createFunctionalTests(dependsOn: [tagFunctionalTestDockerImage , createFunctionalTestDockerImage]){
     doLast {
         println 'Published Functional Tests'
     }
 
+}
+task tagGitRepo(type:Exec) {
+  commandLine 'git',  'tag',  '-a',  '$dockerTag', '-m', 'Jenkins Create Tag'
+}
+task pushGittag(type:Exec, dependsOn: tagGitRepo) {
+  commandLine 'git', 'push',  'git@github.com:ca-cwds/API.git' '--tags'
+}
+task publishGitTag(type:Exec, dependsOn: [tagGitRepo, pushGittag]) {
+	dolast {
+		println 'Published Git Tag'
+	}
 }
 task publishDocker(dependsOn: [pushDockerVersionTagged, pushDockerLatest,
                                pushIntegrationTestDockerVersionTagged, pushIntegrationTestDockerLatest,

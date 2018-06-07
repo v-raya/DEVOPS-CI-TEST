@@ -191,12 +191,16 @@ node ('tpt4-slave'){
    //pipelineTriggers([pollSCM('H/5 * * * *')])
       ])])
   try {
-   stage('Preparation') {
-		  git branch: '$branch', url: 'git@github.com:ca-cwds/devops-ci-test.git'
-		  rtGradle.tool = "Gradle_35"
-		  rtGradle.resolver repo:'repo', server: serverArti
-		  rtGradle.useWrapper = false
-   }
+   stage('Clone Repo') {
+		  cleanWs()
+		  git branch: 'master', credentialsId: '433ac100-b3c2-4519-b4d6-207c029a103b', url: 'git@github.com:ca-cwds/devops-ci-test.git'
+	 }
+   //stage('Preparation') {
+	 //	  git branch: '$branch', url: 'git@github.com:ca-cwds/devops-ci-test.git'
+	//	  rtGradle.tool = "Gradle_35"
+	//	  rtGradle.resolver repo:'repo', server: serverArti
+	//	  rtGradle.useWrapper = false
+  // }
    stage("Increment Tag") {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")

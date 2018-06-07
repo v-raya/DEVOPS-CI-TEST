@@ -334,8 +334,9 @@ task copyDist(type: Copy, dependsOn: shadowJar) {
 task apidocker(type: Docker,  dependsOn: [copyConfig, copyDist] ) {
     dockerfile = "Dockerfile"
     project.group = "cwds"
-    applicationName = "api"
-    tagVersion = version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
+    applicationName = "devops-ci-test"
+    tagVersion = $buildTag
+  //  tagVersion = version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
 }
 
 task createGradleCache(type: Copy) {

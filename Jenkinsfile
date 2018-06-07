@@ -84,6 +84,7 @@ node ('tpt4-slave'){
   stage ('Build GitTag'){
 	   withCredentials([credentialsId: '433ac100-b3c2-4519-b4d6-207c029a103b']) {
            buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishGitTag -D build=${BUILD_NUMBER}'
+     }
   }
 	stage('Clean Workspace') {
 		cleanWs()

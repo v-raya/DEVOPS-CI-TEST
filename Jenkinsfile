@@ -222,7 +222,7 @@ node ('tpt4-slave'){
    }  
    stage('Build'){
      // Build tag comes from the environment variable defined in UpdateFiles Definition
-		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${buildTag}'
+		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${BUILD_NUMBER} -D build=${buildTag}'
    }
    stage('Tests') {
        buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${buildTag}'

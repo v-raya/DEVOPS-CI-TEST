@@ -170,13 +170,13 @@ def notifyBuild(String buildStatus, Exception e) {
   // Send notifications
 
 //  slackSend channel: "#cals-api", baseUrl: 'https://hooks.slack.com/services/', tokenCredentialId: 'slackmessagetpt2', color: colorCode, message: summary
-  emailext(
-      subject: subject,
-      body: details,
-      attachLog: true,
-      recipientProviders: [[$class: 'DevelopersRecipientProvider']],
-      to: "tom.parker@osi.ca.gov"
-    )
+//  emailext(
+//      subject: subject,
+//      body: details,
+//      attachLog: true,
+//      recipientProviders: [[$class: 'DevelopersRecipientProvider']],
+//      to: "tom.parker@osi.ca.gov"
+//    )
 }
 
 

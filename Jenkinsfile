@@ -197,7 +197,6 @@ node ('tpt4-slave'){
 		  rtGradle.useWrapper = false
    }
    stage("Increment Tag") {
-      try {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")
             
@@ -215,7 +214,6 @@ node ('tpt4-slave'){
 
           updateFiles(newTag)
         }
-      }
    }  
    stage('Build'){
      // Build tag comes from the environment variable defined in UpdateFiles Definition

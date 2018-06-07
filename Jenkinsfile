@@ -1,148 +1,3 @@
-// Used to avoid known_hosts addition, which would require each machine to have GitHub added in advance (maybe should do?)
-GIT_SSH_COMMAND = 'GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"'
-
-// Globals
-enum VersionIncrement { MAJOR, MINOR, PATCH }
-
-def debug(String str) {
-    echo "[DEBUG] ${str}"
-}
-
-// Returns Map of Maps containing the parsed JSON from the pull request event
-def getPullRequestEvent() {
-    def prEvents = null
-    prEvents = readJSON text: env.pull_request_event
-
-    return prEvents
-}
-// Takes a Map of Maps containing the parsed JSON from the pull request event
-// Returns a list of label strings
-def getLabels(prEvent) {
-    debug("getLabels( prEvent: ${prEvent} )")
-
-    def labels = []
-    prEvent.labels.each{ labels << it.name }
-
-    return labels
-}
-
-// Takes an array of strings (labels)
-// Returns a VersionIncrement object
-def getVersionIncrement(labels) {
-    debug("getVersionIncrement( labels: ${labels} )")
-
-    def versionIncrement = null
-    def versionIncrementsFound = 0
-    for(label in labels){
-        switch(label) {
-            case "major":
-                versionIncrement = VersionIncrement.MAJOR               
-                versionIncrementsFound++
-                break
-            case "minor":
-                versionIncrement = VersionIncrement.MINOR
-                versionIncrementsFound++
-                break
-            case "patch":
-                versionIncrement = VersionIncrement.PATCH
-                versionIncrementsFound++
-                break
-        }
-    }
-
-    if(versionIncrementsFound > 1)
-        throw new Exception("More than one version increment label found. Please label PR with only one of 'major', 'minor', or 'patch'")
-
-    return versionIncrement
-}
-
-// Compares two SemVer tags
-// Returns -1 if tag1 is younger, 0 if equal, 1 if tag1 is newer
-def compareTags(String tag1, String tag2) {
-    debug("compareTags( tag1: ${tag1}, tag2: ${tag2} )")
-    
-    def tag1Split = tag1.tokenize('.')
-    def tag2Split = tag2.tokenize('.')
-
-    for(def index in (0..2)) {
-        def result = tag1Split[index].compareTo(tag2Split[index])
-        if(result != 0) {
-            return result
-        }
-    }
-
-    return 0
-}
-
-// Gets all the tags that match SemVer format
-// Returns a list of strings (version number tags)
-def getTags() {
-    def gitTagOutput = sh(script: "git tag", returnStdout: true)
-    debug("getTags(): git tag Output: ${gitTagOutput}")
-
-    def tags = gitTagOutput.split("\n").findAll{ it =~ /^\d+\.\d+\.\d+$/ }
-    return tags
-}
-
-// Gets a string indicating what the new tag should be in SemVer format
-// Takes a list of strings in sem
-// Returns a string with the new version tag
-
-def getNewTag(List tags, VersionIncrement increment) {
-    debug("getNewTag( tags: {$tags}, increment: ${increment} )")
-    
-    tags.sort{ x, y -> compareTags(x, y)}
-    def mostRecentTag = tags.last()
-    def mostRecentTagParts = mostRecentTag.tokenize('.')
-
-    def newTagMajor = mostRecentTagParts[0].toInteger()
-    def newTagMinor = mostRecentTagParts[1].toInteger()
-    def newTagPatch = mostRecentTagParts[2].toInteger()
-
-    switch(increment) {
-        case VersionIncrement.MAJOR:
-            newTagMajor++
-            newTagMinor = 0
-            newTagPatch = 0
-            break
-        case VersionIncrement.MINOR:
-            newTagMinor++
-            newTagPatch = 0
-            break
-        case VersionIncrement.PATCH:
-            newTagPatch++
-            break
-    }
-
-    def newTag = "${newTagMajor}.${newTagMinor}.${newTagPatch}"
-    return newTag
-}
-
-// Updates any build files that contain a version tag
-def updateFiles(String newTag) {
-    debug("updateFiles( newTag: ${newTag} )")
-    script: "EXPORT buildTag=${newTag}"
-    // TODO - Implement for updating a file
-    debug("updateFiles: TODO Implement")
-}
-
-// Tags the repo
-def tagRepo(String newTag) {
-    debug("tagRepo( buildTag: ${buildTag} )")
-    
-    def tagStatus = sh(script: "git tag ${buildTag}", returnStatus: true)
-    if( tagStatus != 0) {
-        throw new Exception("Unable to tag the repository with tag '${buildTag}'")
-    }
-
-    def pushStatus = sh(
-        script: "${GIT_SSH_COMMAND} git push origin ${buildTag}", 
-        returnStatus: true)
-    if( pushStatus != 0) {
-        throw new Exception("Unable to push the tag '${buildTag}'")
-    }
-}
-
 def notifyBuild(String buildStatus, Exception e) {
   buildStatus =  buildStatus ?: 'SUCCESSFUL'
 
@@ -170,13 +25,13 @@ def notifyBuild(String buildStatus, Exception e) {
   // Send notifications
 
 //  slackSend channel: "#cals-api", baseUrl: 'https://hooks.slack.com/services/', tokenCredentialId: 'slackmessagetpt2', color: colorCode, message: summary
-//  emailext(
-//      subject: subject,
-//      body: details,
-//      attachLog: true,
-//      recipientProviders: [[$class: 'DevelopersRecipientProvider']],
-//      to: "tom.parker@osi.ca.gov"
-//    )
+  emailext(
+      subject: subject,
+      body: details,
+      attachLog: true,
+      recipientProviders: [[$class: 'DevelopersRecipientProvider']],
+      to: "tom.parker@osi.ca.gov"
+    )
 }
 
 
@@ -184,52 +39,27 @@ def notifyBuild(String buildStatus, Exception e) {
 node ('tpt4-slave'){
    def serverArti = Artifactory.server 'CWDS_DEV'
    def rtGradle = Artifactory.newGradleBuild()
-   //properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10')), disableConcurrentBuilds(), [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
-   //parameters([
-   //   string(defaultValue: 'master', description: '', name: 'branch'),
-   //   booleanParam(defaultValue: true, description: '', name: 'USE_NEWRELIC')
-   //pipelineTriggers([pollSCM('H/5 * * * *')])
-    //  ])])
+   properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10')), disableConcurrentBuilds(), [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
+   parameters([
+      string(defaultValue: 'master', description: '', name: 'branch'),
+      booleanParam(defaultValue: true, description: '', name: 'USE_NEWRELIC')
+      ]), pipelineTriggers([pollSCM('H/5 * * * *')])])
   try {
-   stage('Clone Repo') {
-		  cleanWs()
-		  git branch: 'master', credentialsId: '433ac100-b3c2-4519-b4d6-207c029a103b', url: 'git@github.com:ca-cwds/devops-ci-test.git'
-	 }
-   //stage('Preparation') {
-	 //	  git branch: '$branch', url: 'git@github.com:ca-cwds/devops-ci-test.git'
-	//	  rtGradle.tool = "Gradle_35"
-	//	  rtGradle.resolver repo:'repo', server: serverArti
-	//	  rtGradle.useWrapper = false
-  // }
-   stage("Increment Tag") {
-        def prEvent = getPullRequestEvent()
-        debug("Increment Tag: prEvent: ${prEvent}")
-            
-        def labels = getLabels(prEvent)
-        debug("Increment Tag: labels: ${labels}")
-            
-        VersionIncrement increment = getVersionIncrement(labels)
-        debug("Increment Tag: increment: ${increment}")
-        if(increment != null ) {
-          def tags = getTags()
-          debug("Increment Tag: tags: ${tags}")
-
-          def newTag = getNewTag(tags, increment)
-           debug("Increment Tag: newTag: ${newTag}")
-
-          updateFiles(newTag)
-        }
-   }  
+   stage('Preparation') {
+		  git branch: '$branch', url: 'git@github.com:ca-cwds/API.git'
+		  rtGradle.tool = "Gradle_35"
+		  rtGradle.resolver repo:'repo', server: serverArti
+		  rtGradle.useWrapper = false
+   }
    stage('Build'){
-     // Build tag comes from the environment variable defined in UpdateFiles Definition
-		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${BUILD_NUMBER} -D build=${buildTag}'
+		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${BUILD_NUMBER}'
    }
    stage('Tests') {
-       buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${buildTag}'
+       buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${BUILD_NUMBER}'
        publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/test', reportFiles: 'index.html', reportName: 'JUnit Report', reportTitles: 'JUnit tests summary'])
    }
    stage('Integration Tests'){
-         buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'integrationTest  jacocoTestReport', switches: '--stacktrace -D build=${buildTag}'
+         buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'integrationTest  jacocoTestReport', switches: '--stacktrace -D build=${BUILD_NUMBER}'
          publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/integrationTest', reportFiles: 'index.html', reportName: 'IT Report', reportTitles: 'Integration Tests summary'])
        }
    stage('SonarQube analysis'){
@@ -246,13 +76,14 @@ node ('tpt4-slave'){
 		buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publish -D build=${BUILD_NUMBER}'
 		rtGradle.deployer.deployArtifacts = false
 	}
-  stage ('Build Docker'){
+	stage ('Build Docker'){
 	   withDockerRegistry([credentialsId: '6ba8d05c-ca13-4818-8329-15d41a089ec0']) {
-           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D buildTag=${buildTag}'
+           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D build=${BUILD_NUMBER}'
        }
 	}
-  stage ('Build GitTag') {
-      tagRepo(newTag)
+  stage ('Build GitTag'){
+	   withCredentials([credentialsId: '433ac100-b3c2-4519-b4d6-207c029a103b']) {
+           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishGitTag -D build=${BUILD_NUMBER}'
   }
 	stage('Clean Workspace') {
 		cleanWs()
@@ -276,3 +107,4 @@ node ('tpt4-slave'){
        cleanWs()
  }
 }
+

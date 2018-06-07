@@ -197,7 +197,6 @@ node ('tpt4-slave'){
 		  rtGradle.useWrapper = false
    }
    stage("Increment Tag") {
-      try {
         def prEvent = getPullRequestEvent()
         debug("Increment Tag: prEvent: ${prEvent}")
             
@@ -215,7 +214,6 @@ node ('tpt4-slave'){
 
           updateFiles(newTag)
         }
-      }
    }  
    stage('Build'){
      // Build tag comes from the environment variable defined in UpdateFiles Definition
@@ -240,12 +238,12 @@ node ('tpt4-slave'){
 	    rtGradle.deployer repo:'libs-release', server: serverArti
 	    rtGradle.deployer.deployArtifacts = true
 		//buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'artifactoryPublish'
-		buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publish -D build=${BUILD_NUMBER}'
+		buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publish -D buildTag=${buildTag}'
 		rtGradle.deployer.deployArtifacts = false
 	}
   stage ('Build Docker'){
 	   withDockerRegistry([credentialsId: '6ba8d05c-ca13-4818-8329-15d41a089ec0']) {
-           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D build=${BUILD_NUMBER} -D buildTag=${buildTag}'
+           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D buildTag=${buildTag}'
        }
 	}
   stage ('Build GitTag') {

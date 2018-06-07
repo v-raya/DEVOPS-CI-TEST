@@ -10,7 +10,6 @@ The development team is actively using the [Github Wiki](https://github.com/ca-c
 ## News
 For news that affect Developers and the app: [News](https://github.com/ca-cwds/API/wiki/News)
 
- 
 ## Developer Topics
 For ongoing Developer discussion of topics about practices, standards, etc: [Developer Topics](https://github.com/ca-cwds/API/wiki/Developer-Topics)
 

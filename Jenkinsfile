@@ -189,7 +189,7 @@ node ('tpt4-slave'){
    //   string(defaultValue: 'master', description: '', name: 'branch'),
    //   booleanParam(defaultValue: true, description: '', name: 'USE_NEWRELIC')
    //pipelineTriggers([pollSCM('H/5 * * * *')])
-      ])])
+    //  ])])
   try {
    stage('Clone Repo') {
 		  cleanWs()

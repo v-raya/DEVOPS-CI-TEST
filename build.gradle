@@ -1,396 +1,273 @@
-buildscript {
-    repositories {
-        mavenLocal()
-        jcenter()
-        mavenCentral()
-    }
-    dependencies {
-        classpath 'com.github.jengelman.gradle.plugins:shadow:1.2.3'
-        classpath 'se.transmode.gradle:gradle-docker:1.2'
-        classpath "org.jfrog.buildinfo:build-info-extractor-gradle:4.7.1"
-    }
+// Used to avoid known_hosts addition, which would require each machine to have GitHub added in advance (maybe should do?)
+GIT_SSH_COMMAND = 'GIT_SSH_COMMAND="ssh -o UserKnownHostsFile=/dev/null -o StrictHostKeyChecking=no"'
+
+// Globals
+enum VersionIncrement { MAJOR, MINOR, PATCH }
+
+def debug(String str) {
+    echo "[DEBUG] ${str}"
 }
 
-plugins {
-    id "java"
-    id 'application'
-    id 'net.ltgt.apt' version '0.9'
-    id "org.sonarqube" version "2.2.1"
+// Returns Map of Maps containing the parsed JSON from the pull request event
+def getPullRequestEvent() {
+    def prEvents = null
+    prEvents = readJSON text: env.pull_request_event
+
+    return prEvents
+}
+// Takes a Map of Maps containing the parsed JSON from the pull request event
+// Returns a list of label strings
+def getLabels(prEvent) {
+    debug("getLabels( prEvent: ${prEvent} )")
+
+    def labels = []
+    prEvent.labels.each{ labels << it.name }
+
+    return labels
 }
 
-apply plugin: 'com.github.jk1.dependency-license-report'
-apply plugin: 'maven-publish'
-apply plugin: 'docker'
-apply plugin: 'com.github.johnrengelman.shadow'
-apply plugin: 'jacoco'
-apply from: "$rootDir/gradle/functionalTest.gradle"
+// Takes an array of strings (labels)
+// Returns a VersionIncrement object
+def getVersionIncrement(labels) {
+    debug("getVersionIncrement( labels: ${labels} )")
 
-sourceCompatibility = 1.8
-applicationDefaultJvmArgs = ["-Djava.library.path=.:./lib:/var/lib/jenkins/workspace/API/lib:/usr/local/lib"]
+    def versionIncrement = null
+    def versionIncrementsFound = 0
+    for(label in labels){
+        switch(label) {
+            case "major":
+                versionIncrement = VersionIncrement.MAJOR               
+                versionIncrementsFound++
+                break
+            case "minor":
+                versionIncrement = VersionIncrement.MINOR
+                versionIncrementsFound++
+                break
+            case "patch":
+                versionIncrement = VersionIncrement.PATCH
+                versionIncrementsFound++
+                break
+        }
+    }
 
-project.ext {
-    apiVersion = '0.7.3'
-    coreApiVersion = '1.7.2_794-RC'
-    cwdsModelVersion = '0.7.3_583-RC'
-    configPath = '$rootProject.projectDir/config/'
-    dropwizardVersion = '1.1.0'
-    dropwizardFlywayVersion = '1.0.0-1'
-    metricsVersion = '3.1.0'
-    dropwizardSwaggerVersion = '1.0.0-1'
-    mapstructVersion = '1.2.0.Final'
-    mainclass = 'gov.ca.cwds.rest.ApiApplication'
-    elasticsearchVersion = '5.5.0'
-    log4jVersion = '2.8.2'
+    if(versionIncrementsFound > 1)
+        throw new Exception("More than one version increment label found. Please label PR with only one of 'major', 'minor', or 'patch'")
+
+    return versionIncrement
+}
+
+// Compares two SemVer tags
+// Returns -1 if tag1 is younger, 0 if equal, 1 if tag1 is newer
+def compareTags(String tag1, String tag2) {
+    debug("compareTags( tag1: ${tag1}, tag2: ${tag2} )")
     
-    junitVersion = '4.12'
-    mockitoVersion = "2.8.9"
-    hamcrestVersion = "2.0.0.0"
-    powerMockVersion = "1.7.3"
+    def tag1Split = tag1.tokenize('.')
+    def tag2Split = tag2.tokenize('.')
 
-    apiSecurityTestSupportVersion = '0.5.4_333-RC'
+    for(def index in (0..2)) {
+        def result = tag1Split[index].compareTo(tag2Split[index])
+        if(result != 0) {
+            return result
+        }
+    }
 
-    h2Version = '1.4.194'
-    jsonassertVersion = '1.5.0'
+    return 0
 }
 
-compileJava {
-    options.compilerArgs = [
-            '-Amapstruct.unmappedTargetPolicy=IGNORE'
-    ]
+// Gets all the tags that match SemVer format
+// Returns a list of strings (version number tags)
+def getTags() {
+    def gitTagOutput = sh(script: "git tag", returnStdout: true)
+    debug("getTags(): git tag Output: ${gitTagOutput}")
+
+    def tags = gitTagOutput.split("\n").findAll{ it =~ /^\d+\.\d+\.\d+$/ }
+    return tags
 }
 
-def dockerTag = apiVersion + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
-version = apiVersion
-mainClassName = mainclass
+// Gets a string indicating what the new tag should be in SemVer format
+// Takes a list of strings in sem
+// Returns a string with the new version tag
 
-repositories {
-    mavenLocal()
-    maven {
-        url "http://sonar.dev.cwds.io:8081/artifactory/repo"}
-    mavenCentral()
-    maven {
-        url "http://sonar.dev.cwds.io:8081/artifactory/repo"
-        // url "https://plugins.gradle.org/m2/"
+def getNewTag(List tags, VersionIncrement increment) {
+    debug("getNewTag( tags: {$tags}, increment: ${increment} )")
+    
+    tags.sort{ x, y -> compareTags(x, y)}
+    def mostRecentTag = tags.last()
+    def mostRecentTagParts = mostRecentTag.tokenize('.')
+
+    def newTagMajor = mostRecentTagParts[0].toInteger()
+    def newTagMinor = mostRecentTagParts[1].toInteger()
+    def newTagPatch = mostRecentTagParts[2].toInteger()
+
+    switch(increment) {
+        case VersionIncrement.MAJOR:
+            newTagMajor++
+            newTagMinor = 0
+            newTagPatch = 0
+            break
+        case VersionIncrement.MINOR:
+            newTagMinor++
+            newTagPatch = 0
+            break
+        case VersionIncrement.PATCH:
+            newTagPatch++
+            break
     }
-    maven {
-        url "http://sonar.dev.cwds.io:8081/artifactory/libs-release"
+
+    def newTag = "${newTagMajor}.${newTagMinor}.${newTagPatch}"
+    return newTag
+}
+
+// Updates any build files that contain a version tag
+def updateFiles(String newTag) {
+    debug("updateFiles( newTag: ${newTag} )")
+    script: "EXPORT buildTag=${newTag}"
+    // TODO - Implement for updating a file
+    debug("updateFiles: TODO Implement")
+}
+
+// Tags the repo
+def tagRepo(String newTag) {
+    debug("tagRepo( buildTag: ${buildTag} )")
+    
+    def tagStatus = sh(script: "git tag ${buildTag}", returnStatus: true)
+    if( tagStatus != 0) {
+        throw new Exception("Unable to tag the repository with tag '${buildTag}'")
     }
-    maven {
-        url "https://artifacts.elastic.co/maven"
+
+    def pushStatus = sh(
+        script: "${GIT_SSH_COMMAND} git push origin ${buildTag}", 
+        returnStatus: true)
+    if( pushStatus != 0) {
+        throw new Exception("Unable to push the tag '${buildTag}'")
     }
 }
 
-shadowJar {
-  classifier = 'dist'
-  baseName = 'api'
-  zip64 = true
-  mergeServiceFiles()	
-  manifest {
-    attributes 'Main-Class': mainclass
+def notifyBuild(String buildStatus, Exception e) {
+  buildStatus =  buildStatus ?: 'SUCCESSFUL'
+
+  // Default values
+  def colorName = 'RED'
+  def colorCode = '#FF0000'
+  def subject = "${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]'"
+  def summary = """*${buildStatus}*: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':\nMore detail in console output at <${env.BUILD_URL}|${env.BUILD_URL}>"""
+  def details = """${buildStatus}: Job '${env.JOB_NAME} [${env.BUILD_NUMBER}]':\n
+    Check console output at ${env.BUILD_URL} """
+  // Override default values based on build status
+  if (buildStatus == 'STARTED') {
+    color = 'YELLOW'
+    colorCode = '#FFFF00'
+  } else if (buildStatus == 'SUCCESSFUL') {
+    color = 'GREEN'
+    colorCode = '#00FF00'
+  } else {
+    color = 'RED'
+    colorCode = '#FF0000'
+    details +="<p>Error message ${e.message}, stacktrace: ${e}</p>"
+    summary +="\nError message ${e.message}, stacktrace: ${e}"
   }
-  version = ''
+
+  // Send notifications
+
+//  slackSend channel: "#cals-api", baseUrl: 'https://hooks.slack.com/services/', tokenCredentialId: 'slackmessagetpt2', color: colorCode, message: summary
+ // emailext(
+//      subject: subject,
+//      body: details,
+//      attachLog: true,
+//      recipientProviders: [[$class: 'DevelopersRecipientProvider']],
+//      to: "tom.parker@osi.ca.gov"
+//    )
 }
 
-publishing {
-  publications {
-      mavenJava(MavenPublication) {
-      from components.java
-      groupId 'gov.ca.cwds.api'
-      artifactId 'api'
-        version version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
+
+
+node ('tpt4-slave'){
+   def serverArti = Artifactory.server 'CWDS_DEV'
+   def rtGradle = Artifactory.newGradleBuild()
+   properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '', daysToKeepStr: '', numToKeepStr: '10')), disableConcurrentBuilds(), [$class: 'RebuildSettings', autoRebuild: false, rebuildDisabled: false],
+   parameters([
+      string(defaultValue: 'master', description: '', name: 'branch'),
+      booleanParam(defaultValue: true, description: '', name: 'USE_NEWRELIC')
+      ]), pipelineTriggers([pollSCM('H/5 * * * *')])])
+  try {
+   stage('Preparation') {
+		  git branch: '$branch', url: 'git@github.com:ca-cwds/devops-ci-test.git'
+		  rtGradle.tool = "Gradle_35"
+		  rtGradle.resolver repo:'repo', server: serverArti
+		  rtGradle.useWrapper = false
+   }
+   stage("Increment Tag") {
+        def prEvent = getPullRequestEvent()
+        debug("Increment Tag: prEvent: ${prEvent}")
+            
+        def labels = getLabels(prEvent)
+        debug("Increment Tag: labels: ${labels}")
+            
+        VersionIncrement increment = getVersionIncrement(labels)
+        debug("Increment Tag: increment: ${increment}")
+        if(increment != null ) {
+          def tags = getTags()
+          debug("Increment Tag: tags: ${tags}")
+
+          def newTag = getNewTag(tags, increment)
+           debug("Increment Tag: newTag: ${newTag}")
+
+          updateFiles(newTag)
+        }
+   }  
+   stage('Build'){
+     // Build tag comes from the environment variable defined in UpdateFiles Definition
+		def buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'jar -D build=${buildTag}'
+   }
+   stage('Tests') {
+       buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'test jacocoTestReport javadoc', switches: '--stacktrace -D build=${buildTag}'
+       publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/test', reportFiles: 'index.html', reportName: 'JUnit Report', reportTitles: 'JUnit tests summary'])
+   }
+   stage('Integration Tests'){
+         buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'integrationTest  jacocoTestReport', switches: '--stacktrace -D build=${buildTag}'
+         publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/integrationTest', reportFiles: 'index.html', reportName: 'IT Report', reportTitles: 'Integration Tests summary'])
+       }
+   stage('SonarQube analysis'){
+		withSonarQubeEnv('Core-SonarQube') {
+			buildInfo = rtGradle.run buildFile: 'build.gradle', switches: '--info -D build=${BUILD_NUMBER}', tasks: 'sonarqube'
+        }
     }
-  }
-  repositories {
-      maven {
-          url "http://sonar.dev.cwds.io:8081/artifactory/libs-release"
-      }
-  }
-}
 
-dependencies {
-    // third party libs
-    compile group: "gov.ca.cwds.api.libs", name: "bcprov-jdk15on", version: "150"
-    compile group: "gov.ca.cwds.api.libs", name: "cryptojFIPS", version: "1"
-    compile group: "gov.ca.cwds.api.libs", name: "db2jcc", version: "4"
-    compile group: "gov.ca.cwds.api.libs", name: "db2jcc_license_cisuz", version: "1"
-    compile group: "gov.ca.cwds.api.libs", name: "libKeyJNI", version: "1", ext: "dylib"
-    compile group: "gov.ca.cwds.api.libs", name: "libKeyJNI", version: "1", ext: "so"
-    compile group: "gov.ca.cwds.api.libs", name: "libLZW", version: "1", ext: "dylib"
-    compile group: "gov.ca.cwds.api.libs", name: "libLZW", version: "1", ext: "so"
-    compile group: "gov.ca.cwds.api.libs", name: "libstdc", version: "6", ext: "so"
-    compile group: "gov.ca.cwds.api.libs", name: "lzw", version: "1", ext: "dll"
-    compile group: "gov.ca.cwds.api.libs", name: "lzw", version: "1", ext: "lib"
-    compile group: "gov.ca.cwds.api.libs", name: "msvcp", version: "140" ,ext: "dll"
-    compile group: "gov.ca.cwds.api.libs", name: "securezip-toolkit", version: "1"
-    compile group: "gov.ca.cwds.api.libs", name: "vcruntime", version: "140" ,ext: "dll"
-    // end thirdparty libs
-
-    compile group: "io.dropwizard", name: "dropwizard-client", version: dropwizardVersion
-	compile group: "io.dropwizard", name: "dropwizard-hibernate", version: dropwizardVersion
-	compile group: "io.dropwizard", name: "dropwizard-views", version: dropwizardVersion
-	compile group: "io.dropwizard", name: "dropwizard-views-mustache", version: dropwizardVersion
-	compile group: 'io.dropwizard', name: 'dropwizard-assets', version: dropwizardVersion
-	compile group: "io.dropwizard", name: "dropwizard-testing", version: dropwizardVersion
-	compile group: "io.dropwizard.metrics", name: "metrics-core", version: metricsVersion
-    compile group: "io.dropwizard.modules", name: "dropwizard-flyway", version: dropwizardFlywayVersion
-
-    compile group: 'gov.ca.cwds.cals', name: 'intake-ns-data-model', version: cwdsModelVersion
-    compile group: 'org.liquibase', name: 'liquibase-core', version: '3.5.3'
-    compile group: "org.glassfish.jersey.ext", name: "jersey-declarative-linking", version: "2.23.2"
-	compile group: "javax.el", name: "javax.el-api", version: "2.2.4"
-	compile group: "org.glassfish.web", name: "javax.el", version: "2.2.4"
-	compile group: 'commons-beanutils', name: 'commons-beanutils', version: '1.8.3'
-	compile group: 'org.apache.poi', name: 'poi-ooxml', version: '3.17'
-	compile group: 'org.apache.poi', name: 'poi-scratchpad', version: '3.17'
-	compile group: 'org.apache.poi', name: 'poi', version: '3.17'
-    compile group: 'org.mapstruct', name: 'mapstruct-jdk8', version: mapstructVersion
-
-    // ES 5.x:
-    compile group: 'org.elasticsearch', name: 'elasticsearch', version: elasticsearchVersion
-    compile group: 'org.elasticsearch.client', name: 'transport', version: elasticsearchVersion
-    compile ("org.elasticsearch.client:x-pack-transport:" + elasticsearchVersion)
-
-	// Dropwizard-guice 1.0.0.2 conflicts with jersey-client 2.25.
-	// Exclude transitive dependencies.
-    compile (group: 'gov.ca.cwds.api', name: 'api-core', version: coreApiVersion) {
-	    exclude group: 'org.glassfish.jersey.core'
+	stage ('Push to artifactory'){
+      //rtGradle.deployer repo:'libs-snapshot', server: serverArti
+	    rtGradle.deployer repo:'libs-release', server: serverArti
+	    rtGradle.deployer.deployArtifacts = true
+		//buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'artifactoryPublish'
+		buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publish -D build=${BUILD_NUMBER}'
+		rtGradle.deployer.deployArtifacts = false
 	}
-    compile group: 'gov.ca.cwds.api', name: 'legacy-data-access-services', version: coreApiVersion
-
-	// LOGGING:	
-	compile group: 'org.apache.logging.log4j', name: 'log4j-api', version: log4jVersion
-  	compile group: 'org.apache.logging.log4j', name: 'log4j-core', version: log4jVersion
-	compile group: 'org.apache.logging.log4j', name: 'log4j-to-slf4j', version: log4jVersion
-	compile group: 'ch.qos.logback', name: 'logback-classic', version: '1.2.1'
-	compile group: 'org.slf4j', name: 'slf4j-ext', version: '1.7.25'
-	compile group: 'org.slf4j', name: 'slf4j-simple', version: '1.7.25'
-
-	compile group: 'org.glassfish.jersey.core', name: 'jersey-client', version: '2.25.1'
-	compile group: 'com.hubspot.dropwizard', name: 'dropwizard-guice', version: '1.0.6.0'
-
-	compile 'com.fasterxml.jackson.module:jackson-module-guice:2.8.2'
-	compile group: 'org.secnod.dropwizard', name: 'dropwizard-shiro', version: '0.2.0'
-
-    compile fileTree(dir: 'lib', include: ['*.jar'])
-    
-	compile group: 'io.swagger', name: 'swagger-jersey2-jaxrs', version: '1.5.9'
-	compile group: 'io.swagger', name: 'swagger-annotations', version: '1.5.9'
-    compile group: "org.postgresql", name: "postgresql", version: "9.4.1208.jre7"
-    compile group: 'org.json', name: 'json', version: '20090211'
-
-    // Distributed XA transactions:
-    compile group: 'com.atomikos', name: 'atomikos-util', version: '4.0.6'
-    compile group: 'com.atomikos', name: 'transactions-jta', version: '4.0.6'
-    compile group: 'com.atomikos', name: 'transactions-hibernate4', version: '4.0.6'
-    compile group: 'org.hibernate', name: 'hibernate-ehcache', version: '5.2.8.Final'
-    
-	// testCompile 'org.glassfish.jersey.core:jersey-client:2.26-b01'
-    testCompile group: 'gov.ca.cwds.api', name: 'api-core-test-support', version: coreApiVersion
-    testCompile group: 'gov.ca.cwds.cals', name: 'cws-cms-data-model', version: cwdsModelVersion
-
-    testCompile group: 'junit', name: 'junit', version: junitVersion
-    testCompile group: 'org.mockito', name: 'mockito-core', version: mockitoVersion
-    testCompile group: 'org.powermock', name: 'powermock-module-junit4', version: powerMockVersion
-    testCompile group: 'org.powermock', name: 'powermock-api-mockito2', version: powerMockVersion
-    testCompile group: 'org.hamcrest', name: 'hamcrest-junit', version: hamcrestVersion
-    testCompile group: 'org.skyscreamer', name: 'jsonassert', version: jsonassertVersion
-	testCompile('org.glassfish.jersey.test-framework.providers:jersey-test-framework-provider-grizzly2:2.23.2') {
-		exclude group: 'javax.servlet', module: 'javax.servlet-api'
-		exclude group: 'junit', module: 'junit'
-		
-	// functional testing
-    testCompile group: 'com.jayway.restassured', name: 'rest-assured', version: '2.9.0'
-    	compile group: 'com.jayway.jsonpath', name: 'json-path', version: '2.4.0'	
+  stage ('Build Docker'){
+	   withDockerRegistry([credentialsId: '6ba8d05c-ca13-4818-8329-15d41a089ec0']) {
+           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D build=${BUILD_NUMBER} -D buildTag=${buildTag}'
+       }
 	}
-    testCompile group: 'io.rest-assured', name: 'rest-assured', version: '3.0.7'
-    testCompile group: 'io.rest-assured', name: 'json-schema-validator', version: '3.0.7'
-
-	// https://mvnrepository.com/artifact/nl.jqno.equalsverifier/equalsverifier
-	testCompile group: 'nl.jqno.equalsverifier', name: 'equalsverifier', version: '2.1.6'
-	testCompile group: "com.github.fge", name: "json-schema-validator", version: "2.2.6"
-	
-	// https://mvnrepository.com/artifact/com.google.errorprone/error_prone_annotations
-	testCompile group: 'com.google.errorprone', name: 'error_prone_annotations', version: '2.0.19'
-
-    apt 'org.mapstruct:mapstruct-processor:' + mapstructVersion
-}
-
-task printProps doLast {
-    println System.properties['DB_CMS_JDBC_URL']
-}
-
-tasks.withType(Test) {
-    enableAssertions = true
-    systemProperties project.properties.subMap(["DB_CMS_JDBC_URL", "DB_CMS_PASSWORD", "DB_CMS_SCHEMA", "DB_CMS_USER", "DB_NS_JDBC_URL", "DB_NS_PASSWORD", "DB_NS_SCHEMA", "DB_NS_USER", "DB_CWSRS_JDBC_URL", "DB_CWSRS_PASSWORD", "DB_CWSRS_SCHEMA", "DB_CWSRS_USER"])
-
-    // These don't work. Docs mistaken?
-    // jvmArgs '-Djava.library.path=.:$rootProject.projectDir/lib/:/var/lib/jenkins/workspace/API/:/usr/local/lib/'
-    // jvmArgs '-Djava.library.path=.:./lib/:/var/lib/jenkins/workspace/API/:/usr/local/lib/'
-
-    // Set system properties for the test JVM(s).
-    // Gradle passed the literal string '$rootProject.projectDir' ???
-    // systemProperty 'java.library.path', '.:${rootProject.projectDir}/lib/:/var/lib/jenkins/workspace/API/:/usr/local/lib/'
-    systemProperty 'java.library.path', '.:./lib:/opt/jenkins/workspace/taborda-API/lib:/usr/local/lib'
-}
-
-test {
-    exclude '**/*IT.*'
-    exclude '**/*IRT.*'
-
-    // These don't work. Docs mistaken?
-    // jvmArgs '-Djava.library.path=.:$rootProject.projectDir/lib/:/var/lib/jenkins/workspace/API/:/usr/local/lib/'
-
-    // Set system properties for the test JVM(s).
-    // Gradle passes the literal string '$rootProject.projectDir' ???
-    // systemProperty 'java.library.path', '.:$rootProject.projectDir/lib/:/var/lib/jenkins/workspace/API/:/usr/local/lib/'
-    systemProperty 'java.library.path', '.:./lib:/var/lib/jenkins/workspace/API/lib:/usr/local/lib'
-    environment 'LOCAL_DEV', 'true'
-}
-
-task functionalTest(type: Test, dependsOn: testClasses) {
-    exclude '**/*IT.*'
-    exclude '**/*IRT.*'
-    exclude '**/*Test.*'
-    // systemProperties project.properties.subMap(["DB_CMS_JDBC_URL", "DB_CMS_PASSWORD", "DB_CMS_SCHEMA", "DB_CMS_USER", "DB_NS_JDBC_URL", "DB_NS_PASSWORD", "DB_NS_SCHEMA", "DB_NS_USER", DB_CWSRS_JDBC_URL", "DB_CWSRS_PASSWORD", "DB_CWSRS_SCHEMA", "DB_CWSRS_USER"])
-}
-
-task integrationTest(type: Test, dependsOn: testClasses) {
-    include '**/*SuiteIT.*'
-    exclude '**/*DaoIT.*'
-    exclude '**/*IRT.*'
-    exclude '**/*Test.*'
-    // systemProperties project.properties.subMap(["DB_CMS_JDBC_URL", "DB_CMS_PASSWORD", "DB_CMS_SCHEMA", "DB_CMS_USER", "DB_NS_JDBC_URL", "DB_NS_PASSWORD", "DB_NS_SCHEMA", "DB_NS_USER", DB_CWSRS_JDBC_URL", "DB_CWSRS_PASSWORD", "DB_CWSRS_SCHEMA", "DB_CWSRS_USER"])
-}
-
-run {
-    args "server", configPath + "api.yml"
-}
-
-jacocoTestReport {
-  reports {
-    xml.enabled false
-    csv.enabled false
-    html.destination "${buildDir}/jacocoHtml"
-    afterEvaluate {
-      classDirectories = files(classDirectories.files.collect {
-        fileTree(dir: it,
-          exclude: [
-            'gov/ca/cwds/rest/services/mapper/**'
-          ]
-        )
-      })
-    }
+  stage ('Build GitTag') {
+      tagRepo(newTag)
   }
-}
+	stage('Clean Workspace') {
+		cleanWs()
+	}
+	stage('Deploy Application') {
+		build job: 'tpt4-api-deploy-app', parameters: [string(name: 'version', value: 'latest'), string(name: 'inventory', value: 'inventories/development/hosts.yml')], propagate: false
+	}
+	stage('JMeter Tests') {
+		build job: 'tpt4-api-jmeter-tests', propagate: false
 
-sonarqube {
-  properties {
-      property "sonar.jacoco.reportPaths", "${buildDir}/jacoco/test.exec"
-      property "sonar.jacoco.reportPaths", "${buildDir}/jacoco/integrationTest.exec"
-  }
-}
+	}
 
-import com.github.jk1.license.render.*
-licenseReport {
-    renderers = [new XmlReportRenderer(), new CwdsCsvReportRenderer(), new InventoryHtmlReportRenderer()]
-    excludeGroups = ['gov.ca.cwds.api.libs']
-}
-
-
-def licenceFolder = 'build/reports/dependency-license'
-task libLicenceFolders(type: Copy){
-    from licenceFolder
-    into 'legal/licenses'
-    exclude "index.html"
-    exclude "index.xml"
-    exclude "licenses.csv"
-}
-
-task libLicenseReportFiles(type: Copy){
-    from licenceFolder
-    into 'legal'
-    include "index.html"
-    include "index.xml"
-    include "licenses.csv"
-}
-
-
-task libLicenseReport(dependsOn:[generateLicenseReport, libLicenceFolders,
-                                 libLicenseReportFiles ] ){
-    println ("\n\n License files are generated in : ${licenceFolder}")
-}
-
-task copyConfig(type: Copy) {
-    from 'config'
-    into 'build/docker/config'
-}
-
-task copyDist(type: Copy, dependsOn: shadowJar) {
-    from 'build/libs'
-    into 'build/docker/libs'
-}
-
-task apidocker(type: Docker,  dependsOn: [copyConfig, copyDist] ) {
-    dockerfile = "Dockerfile"
-    project.group = "cwds"
-    applicationName = "api"
-    tagVersion = version + ((System.properties.getProperty('build') != null ) ? '.' + System.properties.getProperty('build') : '')
-}
-
-task createGradleCache(type: Copy) {
-    from "$System.env.HOME/.gradle/caches/"
-    into 'build/gradle_cache'
-}
-
-task createFunctionalTestDockerImage (type:Exec, dependsOn: createGradleCache) {
-  commandLine 'docker', 'build', '--file', 'docker/DockerfileTests',  '-t', 'cwds/api-functional-test', '.'
-}
-
-task createIntegrationTestDockerImage (type:Exec, dependsOn: shadowJar) {
-  commandLine 'docker',  'build',  '-t',  'cwds/api-integration-test', '-f', 'DockerfileIntegrationTest', '.'
-}
-
-task createDockerImage(type:Exec, dependsOn: shadowJar) {
-  commandLine 'docker',  'build',  '-t',  'cwds/api', '-f', 'Dockerfile', '.'
-}
-
-task tagFunctionalTestDockerImage(type:Exec, dependsOn: createFunctionalTestDockerImage) {
-    commandLine 'docker',  'tag',  'cwds/api-functional-test',  "cwds/api-functional-test:$dockerTag"
-}
-
-task tagIntegrationTestDockerImage(type:Exec, dependsOn: createIntegrationTestDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api-integration-test',  "cwds/api-integration-test:$dockerTag"
-}
-
-task tagDockerImage(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'tag',  'cwds/api',  "cwds/api:$dockerTag"
-}
-
-task pushIntegrationTestDockerLatest(type:Exec, dependsOn: createIntegrationTestDockerImage) {
-  commandLine 'docker',  'push',  'cwds/api-integration-test:latest'
-}
-
-task pushDockerLatest(type:Exec, dependsOn: createDockerImage) {
-  commandLine 'docker',  'push',  'cwds/api:latest'
-}
-
-task pushIntegrationTestDockerVersionTagged(type:Exec, dependsOn: tagIntegrationTestDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api-integration-test:$dockerTag"
-}
-
-task pushDockerVersionTagged(type:Exec, dependsOn: tagDockerImage) {
-  commandLine 'docker',  'push',  "cwds/api:$dockerTag"
-}
-task createFunctionalTests(dependsOn: [tagFunctionalTestDockerImage , createFunctionalTestDockerImage]){
-    doLast {
-        println 'Published Functional Tests'
-    }
-
-}
-task publishDocker(dependsOn: [pushDockerVersionTagged, pushDockerLatest,
-                               pushIntegrationTestDockerVersionTagged, pushIntegrationTestDockerLatest,
-                               createFunctionalTests] ) {
-    doLast {
-        println 'Published'
-    }
+ } catch (Exception e)    {
+ 	   errorcode = e
+  	   currentBuild.result = "FAIL"
+  	   notifyBuild(currentBuild.result,errorcode)
+  	   throw e;
+ }finally {
+       publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/test', reportFiles: 'index.html', reportName: 'JUnit Report', reportTitles: 'JUnit tests summary'])
+       publishHTML([allowMissing: true, alwaysLinkToLastBuild: true, keepAll: true, reportDir: 'build/reports/tests/integrationTest', reportFiles: 'index.html', reportName: 'IT Report', reportTitles: 'Integration Tests summary'])
+       cleanWs()
+ }
 }

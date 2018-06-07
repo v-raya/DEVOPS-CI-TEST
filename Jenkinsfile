@@ -243,7 +243,7 @@ node ('tpt4-slave'){
 	}
   stage ('Build Docker'){
 	   withDockerRegistry([credentialsId: '6ba8d05c-ca13-4818-8329-15d41a089ec0']) {
-           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D build=${BUILD_NUMBER} -D buildTag=${buildTag}'
+           buildInfo = rtGradle.run buildFile: 'build.gradle', tasks: 'publishDocker -D buildTag=${buildTag}'
        }
 	}
   stage ('Build GitTag') {
